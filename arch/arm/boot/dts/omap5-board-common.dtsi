@@ -158,14 +158,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <
 			&usbhost_pins
-			&led_gpio_pins
 	>;
-
-	twl6040_pins: twl6040 {
-		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
-		>;
-	};
 
 	mcpdm_pins: mcpdm {
 		pinctrl-single,pins = <
@@ -254,12 +247,6 @@
 
 			OMAP5_IOPAD(0x0b0, PIN_OUTPUT | MUX_MODE6) /* gpio3_80 HUB_NRESET */
 			OMAP5_IOPAD(0x0ae, PIN_OUTPUT | MUX_MODE6) /* gpio3_79 ETH_NRESET */
-		>;
-	};
-
-	led_gpio_pins: led_gpio {
-		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x1d6, PIN_OUTPUT | MUX_MODE6) /* uart3_cts_rctx.gpio5_153 */
 		>;
 	};
 
@@ -641,9 +628,6 @@
 		compatible = "ti,twl6040";
 		#clock-cells = <0>;
 		reg = <0x4b>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&twl6040_pins>;
 
 		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
 

@@ -17,17 +17,61 @@
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x7f000000>; /* 2032 MB */
 	};
+};
 
-	leds {
-		compatible = "gpio-leds";
-		led1 {
-			label = "omap5:blue:usr1";
-			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>; /* gpio5_153 D1 LED */
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
+
+&i2c1 {
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
 	};
+};
 
+&i2c5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pins>;
+
+	clock-frequency = <400000>;
+};
+
+&omap5_pmx_core {
+	i2c5_pins: i2c5 {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
+			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+		>;
+	};
+};
+
+&i2c5 {
+	gpio9: gpio@22 {
+		compatible = "ti,tca6424";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tca6424_pins>;
+		interrupt-parent = <&gpio3>;
+//		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;  /* gpio3_76 */
+//		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;  /* gpio3_76 */
+		// level_low is correct, but iirc the driver is crappy.
+		// also be sure to configure unused pins as outputs to
+		// avoid getting spurious interrupts from noise pickup.
+	};
+};
+
+&omap5_pmx_core {
+	tca6424_pins: tca6424 {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0a8, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio3_76 */
+		>;
+	};
+};
+
+
+/****** gpio keys/buttons ******/
+
+/ {
 	evm_keys {
 		compatible = "gpio-keys";
 
@@ -46,135 +90,137 @@
 			debounce_interval = <50>;
 		};
 	};
-
-	evm_leds {
-		compatible = "gpio-leds";
-
-		led1 {
-			label = "omap5:red:led";
-			gpios = <&gpio9 17 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "mmc0";
-			default-state = "off";
-		};
-
-		led2 {
-			label = "omap5:green:led";
-			gpios = <&gpio9 18 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "mmc1";
-			default-state = "off";
-		};
-
-		led3 {
-			label = "omap5:blue:led";
-			gpios = <&gpio9 19 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "mmc2";
-			default-state = "off";
-		};
-
-		led4 {
-			label = "omap5:green:led1";
-			gpios = <&gpio9 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-
-		led5 {
-			label = "omap5:green:led2";
-			gpios = <&gpio9 3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
-			default-state = "off";
-		};
-
-		led6 {
-			label = "omap5:green:led3";
-			gpios = <&gpio9 4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-
-		led7 {
-			label = "omap5:green:led4";
-			gpios = <&gpio9 5 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
-			default-state = "off";
-		};
-
-		led8 {
-			label = "omap5:green:led5";
-			gpios = <&gpio9 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-	};
-};
-
-&hdmi {
-	vdda-supply = <&ldo4_reg>;
-};
-
-&i2c1 {
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
-	};
-};
-
-&i2c5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5_pins>;
-
-	clock-frequency = <400000>;
-
-	gpio9: gpio@22 {
-		compatible = "ti,tca6424";
-		reg = <0x22>;
-		gpio-controller;
-		#gpio-cells = <2>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&tca6424_pins>;
-		interrupt-parent = <&gpio3>;
-//		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;  /* gpio3_76 */
-		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;  /* gpio3_76 */
-	};
 };
 
 &omap5_pmx_core {
 	evm_keys_pins: evm_keys {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x0b6, PIN_INPUT | MUX_MODE6)	/* gpio3_83 */
+			OMAP5_IOPAD(0x0b6, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio3_83 */
 		>;
 	};
+};
 
-	i2c5_pins: i2c5 {
-		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
-			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
-		>;
-	};
 
-	tca6424_pins: tca6424 {
+/****** gpio leds ******/
+
+/ {
+	evm_leds {
+		compatible = "gpio-leds";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&evm_leds_pins>, <&evm_leds_wkup_pins>;
+
+		// LED schematics, simplified:
+		//   gpio1.04 --H_SYSBOOT_4--> Q3.1 --BLU_LED_1---> D2 "GLED2"
+		//   gpio5.25 --H_GPIO5_153--> Q3.2 --BLU_LED_2---> D1 "GLED1"
+		//   gpio9.02 --PIO_GPIO_02--> Q6.1 --GRN_LED0----> D8 "LED1"
+		//   gpio9.03 --PIO_GPIO_03--> Q6.2 --GRN_LED1----> D7 "LED2"
+		//   gpio9.04 --PIO_GPIO_04--> Q5.1 --GRN_LED2----> D6 "LED3"
+		//   gpio9.05 --PIO_GPIO_05--> Q5.2 --GRN_LED3----> D5 "LED4"
+		//   gpio9.06 --PIO_GPIO_06--> Q1.1 --GRN_LED4----> D4 "LED5"
+		//   gpio9.17 --TC_LED_RED---> Q1.2 --TRICOLOR_R-\
+		//   gpio9.18 --TC_LED_GRN---> Q2.1 --TRICOLOR_G--> D14 "LED"
+		//   gpio9.19 --TC_LED_BLUE--> Q2.2 --TRICOLOR_B-/
+
+		blue1 {
+			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu0";
+		};
+		blue2 {
+			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu1";
+		};
+
+		green1 {
+			gpios = <&gpio9 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+			default-state = "on";
+		};
+		green2 {
+			gpios = <&gpio9 3 GPIO_ACTIVE_HIGH>;
+		};
+		green3 {
+			gpios = <&gpio9 4 GPIO_ACTIVE_HIGH>;
+		};
+		green4 {
+			gpios = <&gpio9 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+		};
+		green5 {
+			gpios = <&gpio9 6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc1";
+		};
+
+		tricolor.red {
+			gpios = <&gpio9 17 GPIO_ACTIVE_HIGH>;
+		};
+		tricolor.green {
+			gpios = <&gpio9 18 GPIO_ACTIVE_HIGH>;
+		};
+		tricolor.blue {
+			gpios = <&gpio9 19 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&omap5_pmx_wkup {
+	evm_leds_wkup_pins: evm_leds {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x0a8, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio3_76 */
+			OMAP5_IOPAD(0x078, PIN_OUTPUT | MUX_MODE6)
 		>;
 	};
+};
+
+&omap5_pmx_core {
+	evm_leds_pins: evm_leds {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1d6, PIN_OUTPUT | MUX_MODE6) /* uart3_cts_rctx.gpio5_153 */
+		>;
+	};
+};
+
+
+/****** hdmi details ******/
+
+&hdmi {
+	vdda-supply = <&ldo4_reg>;
 };
 
 &tpd12s015 {
 	gpios = <&gpio9 0 GPIO_ACTIVE_HIGH>,	/* TCA6424A P01, CT CP HPD */
 		<&gpio9 1 GPIO_ACTIVE_HIGH>,	/* TCA6424A P00, LS OE */
 		<&gpio7 1 GPIO_ACTIVE_HIGH>;	/* GPIO 193, HPD */
+	/* FIXME pinmux for hpd pin */
 };
+
+
+/****** audio ic details ******/
 
 &twl6040 {
 	ti,audpwron-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;  /* gpio line 141 */
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&twl6040_pins>;
 };
 
-&twl6040_pins {
-	pinctrl-single,pins = <
-		OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
-	>;
+&omap5_pmx_core {
+	twl6040_pins: twl6040 {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
+		>;
+	};
 };
+
+
+/****** ehm... why isn't the compatible-string set right from the start? ******/
 
 &wlcore {
 	compatible = "ti,wl1837";
+};
+
+
+/****** not placed on my uevm ******/
+
+&wlcore {
+	status = "disabled";
 };
