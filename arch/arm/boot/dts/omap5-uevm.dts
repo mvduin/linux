@@ -139,20 +139,20 @@
 };
 
 &omap5_pmx_core {
-	evm_keys_pins: pinmux_evm_keys_gpio_pins {
+	evm_keys_pins: evm_keys {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0b6, PIN_INPUT | MUX_MODE6)	/* gpio3_83 */
 		>;
 	};
 
-	i2c5_pins: pinmux_i2c5_pins {
+	i2c5_pins: i2c5 {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
 			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
 		>;
 	};
 
-	tca6424_pins: pinmux_tca6424_pins {
+	tca6424_pins: tca6424 {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0a8, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpio3_76 */
 		>;
