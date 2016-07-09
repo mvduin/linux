@@ -38,6 +38,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/idr.h>
 #include <linux/debugfs.h>
+#include <linux/of.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -2107,9 +2108,14 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 					      int area_type)
 {
 	struct mmc_blk_data *md;
-	int devidx, ret;
+	int devidx = -ENOSPC, ret;
+	int mindynidx = max(0, of_alias_get_highest_id("mmc") + 1);
+	int reqidx = card->host->index;
 
-	devidx = ida_simple_get(&mmc_blk_ida, 0, max_devices, GFP_KERNEL);
+	if (reqidx < mindynidx)
+		devidx = ida_simple_get(&mmc_blk_ida, reqidx, reqidx+1, GFP_KERNEL);
+	if (devidx == -ENOSPC)
+		devidx = ida_simple_get(&mmc_blk_ida, mindynidx, max_devices, GFP_KERNEL);
 	if (devidx < 0) {
 		/*
 		 * We get -ENOSPC because there are no more any available
