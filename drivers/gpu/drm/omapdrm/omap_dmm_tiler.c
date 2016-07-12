@@ -138,14 +138,18 @@ static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
 
 static void release_engine(struct refill_engine *engine)
 {
+	struct dmm *dmm = engine->dmm;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&engine->idle_node, &omap_dmm->idle_head);
+	if (!engine->busy)
+		dev_err(dmm->dev, "engine %d double free!\n", engine->id);
+	engine->busy = false;
+	list_add(&engine->idle_node, &dmm->idle_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
-	atomic_inc(&omap_dmm->engine_counter);
-	wake_up_interruptible(&omap_dmm->engine_queue);
+	atomic_inc(&dmm->engine_counter);
+	wake_up_interruptible(&dmm->engine_queue);
 }
 
 static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
@@ -158,10 +162,12 @@ static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 	dmm_write(dmm, status, DMM_PAT_IRQSTATUS);
 
 	for (i = 0; i < dmm->num_engines; i++) {
+		if (status & 0x7c)
+			dev_err(dmm->dev, "engine %d irqs 0x%x\n", i, status);
 		if (status & DMM_IRQSTAT_LST) {
+			dev_dbg(dmm->dev, "engine %d completion\n", i);
 			if (dmm->engines[i].async)
 				release_engine(&dmm->engines[i]);
-
 			complete(&dmm->engines[i].compl);
 		}
 
@@ -198,6 +204,9 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	BUG_ON(!engine);
+	if (engine->busy)
+		dev_err(dmm->dev, "engine %d busy in txn_init!\n", engine->id);
+	engine->busy = true;
 
 	txn = &engine->txn;
 	engine->tcm = tcm;
@@ -267,7 +276,7 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	struct dmm *dmm = engine->dmm;
 
 	if (!txn->last_pat) {
-		dev_err(engine->dmm->dev, "need at least one txn\n");
+		dev_err(dmm->dev, "need at least one txn\n");
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -293,19 +302,21 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	/* kick reload */
 	dmm_write(dmm, engine->refill_pa, reg[PAT_DESCR][engine->id]);
 
-	if (wait) {
-		if (!wait_for_completion_timeout(&engine->compl,
-				msecs_to_jiffies(100))) {
-			dev_err(dmm->dev, "timed out waiting for done\n");
-			ret = -ETIMEDOUT;
-		}
+	/* if asynchronous then engine released from irq handler */
+	if (!wait)
+		return 0;
+
+	if (!wait_for_completion_timeout(&engine->compl,
+			msecs_to_jiffies(100))) {
+		dev_err(dmm->dev, "timed out waiting for done\n");
+		ret = -ETIMEDOUT;
 	}
 
-cleanup:
-	/* only place engine back on list if we are done with it */
-	if (ret || wait)
-		release_engine(engine);
+	/* reset engine */
+	dmm_write(dmm, 0x0, reg[PAT_DESCR][engine->id]);
 
+cleanup:
+	release_engine(engine);
 	return ret;
 }
 

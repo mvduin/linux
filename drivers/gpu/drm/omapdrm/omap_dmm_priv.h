@@ -147,6 +147,7 @@ struct refill_engine {
 	struct dmm_txn txn;
 
 	bool async;
+	bool busy;
 
 	struct completion compl;
 
