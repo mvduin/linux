@@ -31,7 +31,7 @@ dtbinst-dirs	:= $(dts-dirs)
 
 # Helper targets for Installing DTBs into the boot directory
 quiet_cmd_dtb_install =	INSTALL $<
-      cmd_dtb_install =	mkdir -p $(2); cp $< $(2)
+      cmd_dtb_install =	mkdir -p $(2); cp -p $< $(2)
 
 install-dir = $(patsubst $(dtbinst-root)%,$(INSTALL_DTBS_PATH)%,$(obj))
 
