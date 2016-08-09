@@ -55,6 +55,14 @@ static void pan_worker(struct work_struct *work)
 	omap_gem_roll(fbdev->bo, fbi->var.yoffset * npages);
 }
 
+static int omap_fbdev_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = get_fb(fbi);
+	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
+
+	return omap_gem_mmap_obj(fbdev->bo, vma);
+}
+
 static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *fbi)
 {
@@ -97,6 +105,8 @@ static struct fb_ops omap_fb_ops = {
 	.fb_pan_display = omap_fbdev_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+
+	.fb_mmap = omap_fbdev_mmap,
 };
 
 static int omap_fbdev_create(struct drm_fb_helper *helper,
@@ -128,6 +138,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.pitches[0] =
 			DIV_ROUND_UP(mode_cmd.width * sizes->surface_bpp, 8);
 
+#if 0
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {
 		/* need to align pitch to page size if using DMM scrolling */
@@ -140,6 +151,25 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	};
 	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
 	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
+#else
+	// XXX both fast xwrap and ywrap should be possible, but it requires a
+	// slightly different implementation, so disable for now.
+	fbdev->ywrap_enabled = false;
+	// page alignment however is needed to allocate in tiler
+	mode_cmd.pitches[0] = PAGE_ALIGN(mode_cmd.pitches[0]);
+	if (sizes->surface_bpp != 32) {
+		dev_err(dev->dev, "sizes->surface_bpp != 32\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+	gsize = (union omap_gem_size){
+		.tiled = {
+			.width = sizes->surface_width,
+			.height = sizes->surface_height
+		}
+	};
+	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_TILED_32 | OMAP_BO_WC);
+#endif
 	if (!fbdev->bo) {
 		dev_err(dev->dev, "failed to allocate buffer object\n");
 		ret = -ENOMEM;
@@ -199,9 +229,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	dev->mode_config.fb_base = paddr;
 
 	fbi->screen_base = omap_gem_vaddr(fbdev->bo);
-	fbi->screen_size = fbdev->bo->size;
+	fbi->screen_size = fb->pitches[0] * sizes->fb_height;
 	fbi->fix.smem_start = paddr;
-	fbi->fix.smem_len = fbdev->bo->size;
+	fbi->fix.smem_len = fbi->screen_size;
 
 	/* if we have DMM, then we can use it for scrolling by just
 	 * shuffling pages around in DMM rather than doing sw blit.
