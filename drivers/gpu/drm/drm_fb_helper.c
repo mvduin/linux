@@ -351,6 +351,10 @@ retry:
 
 	for(i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		struct drm_plane_state *plane_state;
+		plane = mode_set->crtc->primary;
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		plane_state->rotation = fb_helper->crtc_info[i].rotation;
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
@@ -1428,7 +1432,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_display_mode *desired_mode;
 		struct drm_mode_set *mode_set;
-		int x, y, j;
+		int width, height, x, y, j;
 		/* in case of tile group, are we the last tile vert or horiz?
 		 * If no tile group you are always the last one both vertically
 		 * and horizontally
@@ -1441,6 +1445,15 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (!desired_mode)
 			continue;
 
+		if (fb_helper->crtc_info[i].rotation &
+				(BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
+			height = desired_mode->hdisplay;
+			width = desired_mode->vdisplay;
+		} else {
+			width = desired_mode->hdisplay;
+			height = desired_mode->vdisplay;
+		}
+
 		crtc_count++;
 
 		x = fb_helper->crtc_info[i].x;
@@ -1449,8 +1462,8 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (gamma_size == 0)
 			gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
 
-		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
-		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
+		sizes.surface_width  = max_t(u32, width + x, sizes.surface_width);
+		sizes.surface_height = max_t(u32, height + y, sizes.surface_height);
 
 		for (j = 0; j < mode_set->num_connectors; j++) {
 			struct drm_connector *connector = mode_set->connectors[j];
@@ -1463,9 +1476,9 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		}
 
 		if (lasth)
-			sizes.fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes.fb_width);
+			sizes.fb_width  = min_t(u32, width + x, sizes.fb_width);
 		if (lastv)
-			sizes.fb_height = min_t(u32, desired_mode->vdisplay + y, sizes.fb_height);
+			sizes.fb_height = min_t(u32, height + y, sizes.fb_height);
 	}
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
@@ -2093,6 +2106,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			fb_crtc->desired_mode = mode;
 			fb_crtc->x = offset->x;
 			fb_crtc->y = offset->y;
+			fb_crtc->rotation = offset->rotation ?: BIT(DRM_ROTATE_0);
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = drm_mode_duplicate(dev,

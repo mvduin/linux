@@ -41,12 +41,14 @@ enum mode_set_atomic {
 
 struct drm_fb_offset {
 	int x, y;
+	unsigned rotation;
 };
 
 struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
 	int x, y;
+	unsigned rotation;
 };
 
 /**
