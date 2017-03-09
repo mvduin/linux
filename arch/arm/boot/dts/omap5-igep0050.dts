@@ -108,11 +108,16 @@
 
 &twl6040 {
 	ti,audpwron-gpio = <&gpio5 16 GPIO_ACTIVE_HIGH>;  /* gpio line 144 */
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&twl6040_pins>;
 };
 
-&twl6040_pins {
-	pinctrl-single,pins = <
-		OMAP5_IOPAD(0x1c4, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_144 */
-		OMAP5_IOPAD(0x1ca, PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
-	>;
+&omap5_pmx_core {
+	twl6040_pins: twl6040 {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x1c4, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_144 */
+			OMAP5_IOPAD(0x1ca, PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
+		>;
+	};
 };

@@ -14,52 +14,72 @@
 		display0 = &hdmi0;
 	};
 
-	vmain: fixedregulator-vmain {
-		compatible = "regulator-fixed";
-		regulator-name = "vmain";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
+	fixed_regulators: regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-	vsys_cobra: fixedregulator-vsys_cobra {
-		compatible = "regulator-fixed";
-		regulator-name = "vsys_cobra";
-		vin-supply = <&vmain>;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
+		/* root regulators running on unregulated input */
 
-	vdds_1v8_main: fixedregulator-vdds_1v8_main {
-		compatible = "regulator-fixed";
-		regulator-name = "vdds_1v8_main";
-		vin-supply = <&smps7_reg>;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
+		dc_5v: dc_5v {
+			compatible = "regulator-fixed";
+			regulator-name = "dc_5v";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			/* used by usb host ports and hdmi level translator */
+		};
 
-	vmmcsd_fixed: fixedregulator-mmcsd {
-		compatible = "regulator-fixed";
-		regulator-name = "vmmcsd_fixed";
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
+		vsys: vsys {
+			compatible = "regulator-fixed";
+			regulator-name = "vsys";
+			regulator-min-microvolt = <3700000>;
+			regulator-max-microvolt = <3700000>;
+			/* feeds most regulators, leds, */
+		};
+
+		vcc_3v3_main: vcc_3v3_main {
+			compatible = "regulator-fixed";
+			regulator-name = "vcc_3v3_main";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		/* controlled regulators */
+
+		vcc_3v3_sdio: vcc_3v3_sdio {
+			compatible = "regulator-fixed";
+			regulator-name = "vcc_3v3_sdio";
+			vin-supply = <&regen3>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		vdds_1v8_main: vdds_1v8_main {
+			compatible = "regulator-fixed";
+			regulator-name = "vdds_1v8_sdio";
+			vin-supply = <&smps7_reg>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		/* this is internal to the wifi module */
+
+		vdd_wilink: vdd_wilink {
+			compatible = "regulator-sdio";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio5 12 GPIO_ACTIVE_HIGH>;	/* gpio140 WLAN_EN */
+			enable-active-high;
+			startup-delay-us = <70000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_pins>;
+		};
 	};
 
 	mmc3_pwrseq: sdhci0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&clk32kgaudio>;
 		clock-names = "ext_clock";
-	};
-
-	vmmcsdio_fixed: fixedregulator-mmcsdio {
-		compatible = "regulator-fixed";
-		regulator-name = "vmmcsdio_fixed";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio5 12 GPIO_ACTIVE_HIGH>;	/* gpio140 WLAN_EN */
-		enable-active-high;
-		startup-delay-us = <70000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wlan_pins>;
 	};
 
 	/* HS USB Host PHY on PORT 2 */
@@ -284,7 +304,7 @@
 &omap5_pmx_wkup {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&usbhost_wkup_pins
+		&usbhost_wkup_pins
 	>;
 
 	palmas_sys_nirq_pins: palmas_sys_nirq {
@@ -307,18 +327,20 @@
 };
 
 &mmc1 {
-	vmmc-supply = <&ldo9_reg>;
+	vmmc-supply = <&vcc_3v3_sdio>;
+	vmmc_aux-supply = <&ldo9_reg>;  /* host I/O */
 	bus-width = <4>;
+	cd-gpios = <&gpio5 24 0>;
 };
 
 &mmc2 {
-	vmmc-supply = <&vmmcsd_fixed>;
+	vmmc-supply = <&vcc_3v3_main>;
 	bus-width = <8>;
 	ti,non-removable;
 };
 
 &mmc3 {
-	vmmc-supply = <&vmmcsdio_fixed>;
+	vmmc-supply = <&vdd_wilink>;
 	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
 	non-removable;
@@ -412,25 +434,25 @@
 
 			ti,ldo6-vibrator;
 
-			smps123-in-supply = <&vsys_cobra>;
-			smps45-in-supply = <&vsys_cobra>;
-			smps6-in-supply = <&vsys_cobra>;
-			smps7-in-supply = <&vsys_cobra>;
-			smps8-in-supply = <&vsys_cobra>;
-			smps9-in-supply = <&vsys_cobra>;
-			smps10_out2-in-supply = <&vsys_cobra>;
-			smps10_out1-in-supply = <&vsys_cobra>;
-			ldo1-in-supply = <&vsys_cobra>;
-			ldo2-in-supply = <&vsys_cobra>;
+			smps123-in-supply = <&vsys>;
+			smps45-in-supply = <&vsys>;
+			smps6-in-supply = <&vsys>;
+			smps7-in-supply = <&vsys>;
+			smps8-in-supply = <&vsys>;
+			smps9-in-supply = <&vsys>;
+			smps10_out2-in-supply = <&vsys>;
+			smps10_out1-in-supply = <&vsys>;
+			ldo1-in-supply = <&vsys>;
+			ldo2-in-supply = <&vsys>;
 			ldo3-in-supply = <&vdds_1v8_main>;
 			ldo4-in-supply = <&vdds_1v8_main>;
-			ldo5-in-supply = <&vsys_cobra>;
+			ldo5-in-supply = <&vsys>;
 			ldo6-in-supply = <&vdds_1v8_main>;
-			ldo7-in-supply = <&vsys_cobra>;
-			ldo8-in-supply = <&vsys_cobra>;
-			ldo9-in-supply = <&vmmcsd_fixed>;
-			ldoln-in-supply = <&vsys_cobra>;
-			ldousb-in-supply = <&vsys_cobra>;
+			ldo7-in-supply = <&vsys>;
+			ldo8-in-supply = <&vsys>;
+			ldo9-in-supply = <&vcc_3v3_sdio>;
+			ldoln-in-supply = <&vsys>;
+			ldousb-in-supply = <&vsys>;
 
 			regulators {
 				smps123_reg: smps123 {
@@ -598,8 +620,8 @@
 					regulator-boot-on;
 				};
 
-				regen3_reg: regen3 {
-					/* REGEN3 controls LDO9 supply to card */
+				regen3: regen3 {
+					/* REGEN3 controls card supply (also input to LDO9) */
 					regulator-name = "regen3";
 					regulator-always-on;
 					regulator-boot-on;
@@ -624,7 +646,7 @@
 
 		/* audpwron gpio defined in the board specific dts */
 
-		vio-supply = <&smps7_reg>;
+		vio-supply = <&vdds_1v8_main>;
 		v2v1-supply = <&smps9_reg>;
 		enable-active-high;
 
