@@ -80,9 +80,6 @@
 	tpd12s015: encoder {
 		compatible = "ti,tpd12s015";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&tpd12s015_pins>;
-
 		/* gpios defined in the board specific dts */
 
 		ports {
@@ -280,12 +277,6 @@
 			OMAP5_IOPAD(0x13c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
 			OMAP5_IOPAD(0x140, PIN_INPUT | MUX_MODE0)	/* hdmi_ddc_scl.hdmi_ddc_scl */
 			OMAP5_IOPAD(0x142, PIN_INPUT | MUX_MODE0)	/* hdmi_ddc_sda.hdmi_ddc_sda */
-		>;
-	};
-
-	tpd12s015_pins: tpd12s015 {
-		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x13e, PIN_INPUT_PULLDOWN | MUX_MODE6)	/* hdmi_hpd.gpio7_193 */
 		>;
 	};
 };

@@ -125,7 +125,6 @@
 	pinctrl-0 = <
 			/* copied from original */
 			&usbhost_pins
-			&led_gpio_pins
 
 			/* new entries */
 			&pyra_button_pins
@@ -739,7 +738,7 @@
 	>;
 };
 
-&vmmcsdio_fixed {
+&vdd_wilink {
 	gpio = <&gpio6 3 GPIO_ACTIVE_HIGH>;	/* GPIO6_163 */
 };
 
