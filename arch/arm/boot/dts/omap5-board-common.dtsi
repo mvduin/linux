@@ -56,7 +56,7 @@
 
 		vdds_1v8_main: vdds_1v8_main {
 			compatible = "regulator-fixed";
-			regulator-name = "vdds_1v8_sdio";
+			regulator-name = "vdds_1v8_main";
 			vin-supply = <&smps7_reg>;
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
@@ -65,7 +65,8 @@
 		/* this is internal to the wifi module */
 
 		vdd_wilink: vdd_wilink {
-			compatible = "regulator-sdio";
+			compatible = "regulator-fixed";
+			vin-supply = <&vsys>;
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			gpio = <&gpio5 12 GPIO_ACTIVE_HIGH>;	/* gpio140 WLAN_EN */
@@ -418,9 +419,9 @@
 
 		gpadc: gpadc {
 			compatible = "ti,palmas-gpadc";
-			interrupts = <18 0
-				      16 0
-				      17 0>;
+			interrupts = <18 IRQ_TYPE_NONE>,
+				     <16 IRQ_TYPE_NONE>,
+				     <17 IRQ_TYPE_NONE>;
 			#io-channel-cells = <1>;
 			ti,channel0-current-microamp = <5>;
 			ti,channel3-current-microamp = <10>;
@@ -509,7 +510,6 @@
 				};
 
 				smps10_out2_reg: smps10_out2 {
-					/* VBUS_5V_OTG */
 					regulator-name = "smps10_out2";
 					regulator-min-microvolt = <5000000>;
 					regulator-max-microvolt = <5000000>;

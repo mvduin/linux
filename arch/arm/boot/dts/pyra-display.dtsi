@@ -120,6 +120,7 @@
 		/* more parameters tbd.
 		polling-period-ms = <>;
 		*/
+		status = "disabled";
 	};
 
 	/* leds */

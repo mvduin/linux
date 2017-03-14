@@ -10,4 +10,5 @@
 
 #include "omap5-letux-cortex15-v5.0.dts"
 #include "pyra-mainboard-v5.0.dtsi"
+#define PANEL 1
 #include "pyra-display.dtsi"

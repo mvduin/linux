@@ -418,7 +418,9 @@
 
 &mmc2 { /* eMMC / uSD-card */
 	bus-width = <8>;
-	/* ti,non-removable; */
+#if 1
+	ti,non-removable;
+#else
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -446,6 +448,7 @@
 		};
 
 	};
+#endif
 };
 
 &mmc3 { /* WiFi-SDIO */
