@@ -703,6 +703,8 @@
 
 &dss {
 	status = "ok";
+
+	vdda_video-supply = <&ldo5_reg>;  /* vdda_1v8_phy */
 };
 
 &hdmi {

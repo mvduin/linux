@@ -57,6 +57,8 @@
 		// level_low is correct, but iirc the driver is crappy.
 		// also be sure to configure unused pins as outputs to
 		// avoid getting spurious interrupts from noise pickup.
+
+		vcc-supply = <&vdds_1v8_main>;
 	};
 };
 

@@ -487,6 +487,8 @@
 			"hdmi-ct-hpd", "hdmi.ls-oe", "p02", "p03", "vibra", "fault2", "p06", "p07",
 			"en-usb", "en-host1", "en-host2", "chg-int", "p14", "p15", "mic-int", "en-modem",
 			"shdn-hs-amp", "chg-status+red", "green", "blue", "en-esata", "fault1", "p26", "p27";
+
+		vcc-supply = <&vdds_1v8_main>;
 	};
 
 	leds-left-mid@64 {
