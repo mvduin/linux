@@ -84,6 +84,11 @@ of_get_fixed_voltage_config(struct device *dev,
 	config->gpio = of_get_named_gpio(np, "gpio", 0);
 	if ((config->gpio < 0) && (config->gpio != -ENOENT))
 		return ERR_PTR(config->gpio);
+	if (!gpio_is_valid(config->gpio)) {
+		/* regulator without enable-signal is necessarily always-on */
+		init_data->constraints.always_on = true;
+		init_data->constraints.boot_on = true;
+	}
 
 	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
 
