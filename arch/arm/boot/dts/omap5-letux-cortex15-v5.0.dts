@@ -418,6 +418,7 @@
 
 &mmc2 { /* eMMC / uSD-card */
 	bus-width = <8>;
+	max-frequency = <96000000>;
 #if 1
 	ti,non-removable;
 #else
