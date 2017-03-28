@@ -733,15 +733,19 @@ static void omap_hsmmc_disable_irq(struct omap_hsmmc_host *host)
 }
 
 /* Calculate divisor for the given clock frequency */
-static u16 calc_divisor(struct omap_hsmmc_host *host, struct mmc_ios *ios)
+static unsigned calc_divisor(struct omap_hsmmc_host *host, struct mmc_ios *ios)
 {
-	u16 dsor = 0;
+	unsigned dsor = 1;
+
+	host->clk_rate = clk_get_rate(host->fclk);
 
 	if (ios->clock) {
-		dsor = DIV_ROUND_UP(clk_get_rate(host->fclk), ios->clock);
+		dsor = DIV_ROUND_UP(host->clk_rate, ios->clock);
 		if (dsor > CLKD_MAX)
 			dsor = CLKD_MAX;
 	}
+
+	ios->clock = host->clk_rate / dsor;
 
 	return dsor;
 }
@@ -751,15 +755,15 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	struct mmc_ios *ios = &host->mmc->ios;
 	unsigned long regval;
 	unsigned long timeout;
-	unsigned long clkdiv;
+	unsigned clkdiv = calc_divisor(host, ios);
 
-	dev_vdbg(mmc_dev(host->mmc), "Set clock to %uHz\n", ios->clock);
+	dev_info(mmc_dev(host->mmc), "set clock to %u kHz / %u = %u kHz\n",
+			host->clk_rate/1000, clkdiv, ios->clock/1000);
 
 	omap_hsmmc_stop_clock(host);
 
 	regval = OMAP_HSMMC_READ(host->base, SYSCTL);
 	regval = regval & ~(CLKD_MASK | DTO_MASK);
-	clkdiv = calc_divisor(host, ios);
 	regval = regval | (clkdiv << 6) | (DTO << 16);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL, regval);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
@@ -2831,6 +2835,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to set clock to %d\n", mmc->f_max);
 		goto err1;
 	}
+	host->clk_rate = clk_get_rate(host->fclk);
+	dev_info(&pdev->dev, "requested fclk %u kHz, got %u kHz\n",
+			mmc->f_max / 1000, host->clk_rate / 1000);
 
 	if (host->pdata->controller_flags & OMAP_HSMMC_BROKEN_MULTIBLOCK_READ) {
 		dev_info(&pdev->dev, "multiblock reads disabled due to 35xx erratum 2.1.1.128; MMC read performance may suffer\n");
