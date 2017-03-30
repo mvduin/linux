@@ -410,19 +410,22 @@
 };
 
 &mmc1 { /* first SD slot */
+	max-frequency = <128000000>;
 /* check polarity and presence */
 // add pinmux! 
 //	cd-gpios = <&gpio8 4 0>;	/* gpio8_228 */
 //	wp-gpios = <&gpio8 5 0>;	/* gpio8_229 */
 };
 
+#if 1
+&mmc2 { /* eMMC */
+	bus-width = <8>;
+	max-frequency = <128000000>;
+	ti,non-removable;
+};
+#else
 &mmc2 { /* eMMC / uSD-card */
 	bus-width = <8>;
-	max-frequency = <96000000>;
-#if 1
-	ti,non-removable;
-#else
-
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -449,8 +452,8 @@
 		};
 
 	};
-#endif
 };
+#endif
 
 &mmc3 { /* WiFi-SDIO */
 	/* has been predefined for a wl1271 in ompa5-common.dtsi */

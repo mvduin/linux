@@ -14,6 +14,7 @@
 	model = "Pyra-Handheld-V5.1";
 
 	pyra_leds { /* alternate LED driver (parallel to is31fl31) */
+		status = "disabled";
 		compatible = "gpio-leds";
 		led@1 {
 			label = "pyra-old:red:left";
@@ -93,55 +94,55 @@
 		left_led1: red_left@1 {
 			label = "pyra:red:left";
 			reg = <1>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		left_led2: green_left@2 {
 			label = "pyra:green:left";
 			reg = <2>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		left_led3: blue_left@3 {
 			label = "pyra:blue:left";
 			reg = <3>;
-			linux,default-trigger = "timer";
+			linux,default-trigger = "mmc0";
 		};
 
 		mid_led4: red_mid@4 {
 			label = "pyra:red:mid";
 			reg = <4>;
-			linux,default-trigger = "default-on";
+			linux,default-trigger = "off";
 		};
 
 		mid_led5: green_mid@5 {
 			label = "pyra:green:mid";
 			reg = <5>;
-			linux,default-trigger = "timer";
+			linux,default-trigger = "off";
 		};
 
 		mid_led6: blue_mid@6 {
 			label = "pyra:blue:mid";
 			reg = <6>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		right_led7: red_right@7 {
 			label = "pyra:red:right";
 			reg = <7>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		right_led8: green_right@8 {
 			label = "pyra:green:right";
 			reg = <8>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		right_led9: blue_right@9 {
 			label = "pyra:blue:right";
 			reg = <9>;
-			linux,default-trigger = "timer";
+			linux,default-trigger = "mmc1";
 		};
 	};
 };

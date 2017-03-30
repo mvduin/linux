@@ -86,7 +86,8 @@
 		interrupt-parent = <&gpio6>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;	/* gpio6_173 falling edge */
 		gpios = <&gpio6 13 GPIO_ACTIVE_LOW>;	/* gpio6_173 active low */
-#if (PANEL == 1)
+//#if (PANEL == 1)
+#if 0
 		touchscreen-size-x = <720>;
 		touchscreen-size-y = <1280>;
 #else
@@ -133,19 +134,19 @@
 		display_led1: red_bottom@1 {
 			label = "logo:red:bottom";
 			reg = <1>;
-			linux,default-trigger = "mmc0";
+			linux,default-trigger = "off";
 		};
 
 		display_led2: green_bottom@2 {
 			label = "logo:green:bottom";
 			reg = <2>;
-			linux,default-trigger = "heartbeat";
+			linux,default-trigger = "off";
 		};
 
 		display_led3: blue_bottom@3 {
 			label = "logo:blue:bottom";
 			reg = <3>;
-			linux,default-trigger = "timer";
+			linux,default-trigger = "off";
 		};
 
 		display_led4: red_top@4 {
@@ -157,13 +158,13 @@
 		display_led5: green_top@5 {
 			label = "logo:green:top";
 			reg = <5>;
-			linux,default-trigger = "timer";
+			linux,default-trigger = "off";
 		};
 
 		display_led6: blue_top@6 {
 			label = "logo:blue:top";
 			reg = <6>;
-			linux,default-trigger = "mmc0";
+			linux,default-trigger = "off";
 		};
 	};
 
