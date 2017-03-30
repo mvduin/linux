@@ -92,15 +92,23 @@ config MVEBU_MBUS
 	  Driver needed for the MBus configuration on Marvell EBU SoCs
 	  (Kirkwood, Dove, Orion5x, MV78XX0 and Armada 370/XP).
 
-config OMAP_INTERCONNECT
-	tristate "OMAP INTERCONNECT DRIVER"
-	depends on ARCH_OMAP2PLUS
-
+config OMAP3_INTERCONNECT
+	tristate "TI OMAP3 Interconnect Driver"
+	depends on ARCH_OMAP3
+	default y
 	help
-	  Driver to enable OMAP interconnect error handling driver.
+	  Driver for logging errors reported by the OMAP3 L3 interconnect.
+
+config OMAP_NOC_INTERCONNECT
+	tristate "TI FlexNOC Interconnect Driver"
+	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_AM43XX || SOC_DRA7XX
+	default y
+	help
+	  Driver for logging errors reported by the FlexNoc L3 interconnect
+	  of the OMAP4, OMAP5, AM43xx, and DRA7xx (AM57xx).
 
 config OMAP_OCP2SCP
-	tristate "OMAP OCP2SCP DRIVER"
+	tristate "TI OCP2SCP Driver"
 	depends on ARCH_OMAP2PLUS
 	help
 	  Driver to enable ocp2scp module which transforms ocp interface
