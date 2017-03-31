@@ -8,6 +8,9 @@
 
 #include <dt-bindings/input/input.h>
 
+/* power down modem and disable bluetooth */
+#define MODEM_BT_OFF
+
 /* overwrite device model */
 
 / {
@@ -69,9 +72,13 @@
 		/* XXX that is not true, e.g. suspend with usb
 		   disabled but wakeup capability from modem */
 		vin-supply = <&modem_vbus_hdmi_power>;
+#ifndef MODEM_BT_OFF
 		regulator-always-on;
+#endif
 	};
 
+
+#ifndef MODEM_BT_OFF
 	modem_en: modem { /* control modem power through rfkill */
 		compatible = "gemalto,phs8-power";
 		gpio-controller;
@@ -85,6 +92,7 @@
 		/* VBUS supply should probably be controlled through the USB PHY driver for the modem port */
 		NIMP-vbus-supply = <&modem_vbus_hdmi_power>;	/* apply VBUS to the modem */
 	};
+#endif
 
 	backlight {
 		compatible = "pwm-backlight";
@@ -203,6 +211,18 @@
 			OMAP5_IOPAD(0x0aa, PIN_INPUT_PULLUP | MUX_MODE6)	/* 0x0A8:[31:16] gpio3_77 - mmc3-cd */
 			OMAP5_IOPAD(0x0ae, PIN_INPUT_PULLUP | MUX_MODE6)	/* 0x0AC:[31:16] gpio3_79 - mmc3-wp */
 /* gpio 3_84-87 = BT HCI uart2 */
+#ifdef MODEM_BT_OFF
+			OMAP5_IOPAD(0x0b8, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* BT uart rts */
+			OMAP5_IOPAD(0x0ba, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* BT uart cts */
+			OMAP5_IOPAD(0x0bc, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* BT uart rxd */
+			OMAP5_IOPAD(0x0be, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* BT uart txd */
+#else
+			/* XXX until problem is fixed, modem should be powered up first! */
+			OMAP5_IOPAD(0x0b8, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* BT uart rts */
+			OMAP5_IOPAD(0x0ba, PIN_INPUT_PULLUP | MUX_MODE0)	/* BT uart cts */
+			OMAP5_IOPAD(0x0bc, PIN_INPUT_PULLUP | MUX_MODE0)	/* BT uart rxd */
+			OMAP5_IOPAD(0x0be, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* BT uart txd */
+#endif
 /* gpio 4_97-100 = GSM PCM mcbsp3 */
 /* gpio 4_101-104 = BT PCM mcbsp1 */
 /* gpio 4_105-107 = FM/DAC PCM mcbsp2 */
@@ -779,13 +799,21 @@
 		vin-supply = <&vsys_reg>;
 	};
 
+#ifndef MODEM_BT_OFF
 	bluetooth: tiwi {
 		/* we can (mis)use the same driver */
 		compatible = "wi2wi,w2cbw003-bluetooth";
 		uart = <&uart2>;
 		vdd-supply = <&bluetooth_power>;
 	};
+#endif
 };
+
+#ifdef MODEM_BT_OFF
+&uart2 {
+	status = "disabled";
+};
+#endif
 
 /* rearrange to use gpio6_167/168 for console UART3 instead of sdio4_cmd/clk */
 
