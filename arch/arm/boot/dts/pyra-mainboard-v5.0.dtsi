@@ -66,6 +66,8 @@
 		startup-delay-us = <100000>;
 		/* the real input is vsys but it makes no sense
 		   to power the modem without requesting vbus */
+		/* XXX that is not true, e.g. suspend with usb
+		   disabled but wakeup capability from modem */
 		vin-supply = <&modem_vbus_hdmi_power>;
 		regulator-always-on;
 	};
@@ -119,6 +121,7 @@
 };
 
 /* add overlay pimmux for pyra on 5432evm */
+/* XXX why are these not attached to the devices they belong to? */
 
 &omap5_pmx_core {
 
@@ -231,7 +234,7 @@
 	pyra_modem_pins: pinmux_moden_gpio_pins {
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x118, PIN_OUTPUT_PULLDOWN | MUX_MODE6)	/* 0x118:[15:0]  gpio6_171 - modem ignite */
-			OMAP5_IOPAD(0x116, PIN_INPUT | MUX_MODE6)	/* 0x114:[31:16]  gpio6_172 - modem power indication */
+			OMAP5_IOPAD(0x116, PIN_INPUT_PULLUP | MUX_MODE6)	/* 0x114:[31:16]  gpio6_172 - modem power indication */
 		>;
 	};
 
@@ -750,13 +753,13 @@
 
 &wlcore {
 	status = "okay";
-	compatible = "ti,wl1835";	/* or "ti,wl1837" */
+	compatible = "ti,wl1837";	/* or "ti,wl1835" */
 };
 
 &omap5_pmx_core {
 	bt_pins: pinmux_bt_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x12a, PIN_OUTPUT | MUX_MODE6)	/* 0x128:[31:16]  gpio6_164 - BT EN */
+			OMAP5_IOPAD(0x12a, PIN_OUTPUT_PULLDOWN | MUX_MODE6)	/* 0x128:[31:16]  gpio6_164 - BT EN */
 		>;
 	};
 
