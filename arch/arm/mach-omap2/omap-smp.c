@@ -77,37 +77,50 @@ void __iomem *omap4_get_scu_base(void)
 }
 
 #ifdef CONFIG_OMAP5_ERRATA_801819
-void omap5_erratum_workaround_801819(void)
+/* Configure ACR to disable streaming WA for 801819 */
+static void omap5_erratum_workaround_801819(unsigned int cpu, u32 *acr)
 {
-	u32 acr, revidr;
-	u32 acr_mask;
+	u32 revidr;
 
 	/* REVIDR[3] indicates erratum fix available on silicon */
 	asm volatile ("mrc p15, 0, %0, c0, c0, 6" : "=r" (revidr));
 	if (revidr & (0x1 << 3))
 		return;
 
-	asm volatile ("mrc p15, 0, %0, c1, c0, 1" : "=r" (acr));
 	/*
 	 * BIT(27) - Disables streaming. All write-allocate lines allocate in
 	 * the L1 or L2 cache.
 	 * BIT(25) - Disables streaming. All write-allocate lines allocate in
 	 * the L1 cache.
 	 */
-	acr_mask = (0x3 << 25) | (0x3 << 27);
-	/* do we already have it done.. if yes, skip expensive smc */
-	if ((acr & acr_mask) == acr_mask)
-		return;
+	*acr |= (0x3 << 25) | (0x3 << 27);
 
-	acr |= acr_mask;
-	omap_smc1(OMAP5_DRA7_MON_SET_ACR_INDEX, acr);
-
-	pr_debug("%s: ARM erratum workaround 801819 applied on CPU%d\n",
-		 __func__, smp_processor_id());
+	pr_debug("%s: Applying ARM erratum workaround 801819 on CPU%d\n",
+		 __func__, cpu);
 }
 #else
-static inline void omap5_erratum_workaround_801819(void) { }
+static inline void omap5_erratum_workaround_801819(unsigned int cpu, u32 *acr)
+{
+}
 #endif
+
+static void omap5_setup_acr(unsigned int cpu)
+{
+	u32 acr, old_acr;
+
+	asm volatile ("mrc p15, 0, %0, c1, c0, 1" : "=r" (acr));
+
+	old_acr = acr;
+	acr |= 1 << 24;  /* Enable non-cacheable load streaming enhancement */
+
+	omap5_erratum_workaround_801819(cpu, &acr);
+
+	if (acr == old_acr)
+		return;
+
+	omap_smc1(OMAP5_DRA7_MON_SET_ACR_INDEX, acr);
+	pr_debug("%s: changed ACR of CPU%d to 0x%08x\n", __func__, cpu, acr);
+}
 
 static void omap4_secondary_init(unsigned int cpu)
 {
@@ -129,8 +142,8 @@ static void omap4_secondary_init(unsigned int cpu)
 		 * indicates the frequency of the cpu local timers.
 		 */
 		set_cntfreq();
-		/* Configure ACR to disable streaming WA for 801819 */
-		omap5_erratum_workaround_801819();
+		/* Configure auxiliary control register */
+		omap5_setup_acr(cpu);
 	}
 
 	/*
@@ -358,7 +371,8 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	if (soc_is_dra74x() || soc_is_omap54xx() || soc_is_dra76x()) {
 		if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
 			cfg.startup_addr = omap5_secondary_hyp_startup;
-		omap5_erratum_workaround_801819();
+		/* Configure auxiliary control register */
+		omap5_setup_acr(0);
 	}
 
 	cfg.cpu1_rstctrl_va = ioremap(cfg.cpu1_rstctrl_pa, 4);
