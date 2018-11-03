@@ -555,11 +555,19 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
 
-	if (omap_obj->flags & OMAP_BO_WC) {
-		vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-	} else if (omap_obj->flags & OMAP_BO_UNCACHED) {
-		vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-	} else {
+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+
+	switch (omap_obj->flags & OMAP_BO_CACHE_MASK) {
+	case OMAP_BO_WC:
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+		break;
+	case OMAP_BO_DEVICE:
+		vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
+		break;
+	case OMAP_BO_UNCACHED:
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		break;
+	default:
 		/*
 		 * We do have some private objects, at least for scanout buffers
 		 * on hardware without DMM/TILER.  But these are allocated write-
@@ -576,8 +584,6 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		fput(vma->vm_file);
 		vma->vm_pgoff = 0;
 		vma->vm_file  = get_file(obj->filp);
-
-		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}
 
 	return 0;
@@ -1142,6 +1148,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	/* Validate the flags and compute the memory and cache flags. */
 	if (flags & OMAP_BO_TILED) {
+		u32 memtype = flags & OMAP_BO_CACHE_MASK;
+
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
 			return NULL;
@@ -1154,12 +1162,17 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		flags &= ~OMAP_BO_SCANOUT;
 		flags |= OMAP_BO_MEM_SHMEM;
 
-		/*
-		 * Currently don't allow cached buffers. There is some caching
-		 * stuff that needs to be handled better.
-		 */
-		flags &= ~(OMAP_BO_CACHED|OMAP_BO_WC|OMAP_BO_UNCACHED);
-		flags |= tiler_get_cpu_cache_flags();
+		/* TILER does not support linefill transfers.  */
+		if (memtype == OMAP_BO_CACHED)
+			memtype = OMAP_BO_WC;
+
+		/* cortex-A15 uses linefills for normal non-cacheable reads */
+		if (tiler_has_read_erratum() && !(flags & OMAP_BO_NO_MMAP_READ)
+				&& memtype == OMAP_BO_WC)
+			memtype = OMAP_BO_DEVICE;
+
+		flags = (flags & ~OMAP_BO_CACHE_MASK) | memtype;
+
 	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
 		/*
 		 * OMAP_BO_SCANOUT hints that the buffer doesn't need to be

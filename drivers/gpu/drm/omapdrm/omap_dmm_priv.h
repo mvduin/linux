@@ -154,7 +154,9 @@ struct refill_engine {
 };
 
 struct dmm_platform_data {
-	u32 cpu_cache_flags;
+	/* reads from tiled memory may fault if mapped using "normal" (not
+	 * device or strongly-ordered) memory type */
+	bool tiler_read_erratum;
 };
 
 struct dmm {

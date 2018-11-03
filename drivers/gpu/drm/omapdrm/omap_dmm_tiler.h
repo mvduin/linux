@@ -105,7 +105,7 @@ u32 tiler_stride(enum tiler_fmt fmt, u32 orient);
 size_t tiler_size(enum tiler_fmt fmt, u16 w, u16 h);
 size_t tiler_vsize(enum tiler_fmt fmt, u16 w, u16 h);
 void tiler_align(enum tiler_fmt fmt, u16 *w, u16 *h);
-u32 tiler_get_cpu_cache_flags(void);
+bool tiler_has_read_erratum(void);
 bool dmm_is_available(void);
 
 extern struct platform_driver omap_dmm_driver;

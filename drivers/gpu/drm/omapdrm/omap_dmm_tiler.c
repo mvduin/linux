@@ -586,9 +586,9 @@ size_t tiler_vsize(enum tiler_fmt fmt, u16 w, u16 h)
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
-u32 tiler_get_cpu_cache_flags(void)
+bool tiler_has_read_erratum(void)
 {
-	return omap_dmm->plat_data->cpu_cache_flags;
+	return omap_dmm->plat_data->tiler_read_erratum;
 }
 
 bool dmm_is_available(void)
@@ -1044,11 +1044,10 @@ static SIMPLE_DEV_PM_OPS(omap_dmm_pm_ops, NULL, omap_dmm_resume);
 
 #if defined(CONFIG_OF)
 static const struct dmm_platform_data dmm_omap4_platform_data = {
-	.cpu_cache_flags = OMAP_BO_WC,
 };
 
 static const struct dmm_platform_data dmm_omap5_platform_data = {
-	.cpu_cache_flags = OMAP_BO_UNCACHED,
+	.tiler_read_erratum = true,
 };
 
 static const struct of_device_id dmm_of_match[] = {

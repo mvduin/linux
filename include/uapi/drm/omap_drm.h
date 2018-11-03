@@ -40,11 +40,15 @@ struct drm_omap_param {
 
 #define OMAP_BO_SCANOUT		0x00000001	/* scanout capable (phys contiguous) */
 #define OMAP_BO_CACHE_MASK	0x00000006	/* cache type mask, see cache modes */
+#define OMAP_BO_NO_MMAP_READ	0x00000010	/* userspace mapping need not support reads */
+#define OMAP_BO_NO_MMAP_WRITE	0x00000020	/* userspace mapping need not support writes */
+#define OMAP_BO_NO_MMAP		0x00000030	/* not required to support userspace mapping */
 #define OMAP_BO_TILED_MASK	0x00000f00	/* tiled mapping mask, see tiled modes */
 
 /* cache modes */
 #define OMAP_BO_CACHED		0x00000000	/* default */
 #define OMAP_BO_WC		0x00000002	/* write-combine */
+#define OMAP_BO_DEVICE		0x00000006	/* device */
 #define OMAP_BO_UNCACHED	0x00000004	/* strongly-ordered (uncached) */
 
 /* tiled modes */
