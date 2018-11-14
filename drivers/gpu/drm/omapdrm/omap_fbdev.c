@@ -137,7 +137,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		.bytes = PAGE_ALIGN(mode_cmd.pitches[0] * mode_cmd.height),
 	};
 	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
-	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
+	fbdev->bo = omap_gem_new(dev, gsize,
+			OMAP_BO_SCANOUT | OMAP_BO_MT_NORMAL);
 	if (!fbdev->bo) {
 		dev_err(dev->dev, "failed to allocate buffer object\n");
 		ret = -ENOMEM;

@@ -39,23 +39,29 @@ struct drm_omap_param {
 };
 
 #define OMAP_BO_SCANOUT		0x00000001	/* scanout capable (phys contiguous) */
-#define OMAP_BO_CACHE_MASK	0x00000006	/* cache type mask, see cache modes */
+#define OMAP_BO_MT_MASK		0x00000006	/* memory type mask, see memory types */
 #define OMAP_BO_NO_MMAP_READ	0x00000010	/* userspace mapping need not support reads */
 #define OMAP_BO_NO_MMAP_WRITE	0x00000020	/* userspace mapping need not support writes */
 #define OMAP_BO_NO_MMAP		0x00000030	/* not required to support userspace mapping */
 #define OMAP_BO_TILED_MASK	0x00000f00	/* tiled mapping mask, see tiled modes */
 
-/* cache modes */
-#define OMAP_BO_CACHED		0x00000000	/* default */
-#define OMAP_BO_WC		0x00000002	/* write-combine */
-#define OMAP_BO_DEVICE		0x00000006	/* device */
-#define OMAP_BO_UNCACHED	0x00000004	/* strongly-ordered (uncached) */
+/* memory types */
+#define OMAP_BO_MT_CACHEABLE	0x00000000	/* normal, cacheable */
+#define OMAP_BO_MT_NORMAL	0x00000002	/* normal, non-cacheable */
+#define OMAP_BO_MT_DEVICE	0x00000006	/* device */
+#define OMAP_BO_MT_STRONGLYORDERED 0x00004	/* strongly-ordered */
 
 /* tiled modes */
 #define OMAP_BO_TILED_8		0x00000100
 #define OMAP_BO_TILED_16	0x00000200
 #define OMAP_BO_TILED_32	0x00000300
 #define OMAP_BO_TILED		(OMAP_BO_TILED_8 | OMAP_BO_TILED_16 | OMAP_BO_TILED_32)
+
+/* backwards compatibility (deprecated) */
+#define OMAP_BO_CACHE_MASK	OMAP_BO_MT_MASK
+#define OMAP_BO_CACHED		OMAP_BO_MT_CACHEABLE
+#define OMAP_BO_WC		OMAP_BO_MT_NORMAL
+#define OMAP_BO_UNCACHED	OMAP_BO_MT_STRONGLYORDERED
 
 union omap_gem_size {
 	__u32 bytes;		/* (for non-tiled formats) */

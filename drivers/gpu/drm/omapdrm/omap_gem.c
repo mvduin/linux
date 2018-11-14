@@ -254,7 +254,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	/* for non-cached buffers, ensure the new pages are clean because
 	 * DSS, GPU, etc. are not cache coherent:
 	 */
-	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
+	if ((omap_obj->flags & OMAP_BO_MT_MASK) != OMAP_BO_MT_CACHEABLE) {
 		addrs = kmalloc_array(npages, sizeof(*addrs), GFP_KERNEL);
 		if (!addrs) {
 			ret = -ENOMEM;
@@ -557,15 +557,15 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
-	switch (omap_obj->flags & OMAP_BO_CACHE_MASK) {
-	case OMAP_BO_WC:
+	switch (omap_obj->flags & OMAP_BO_MT_MASK) {
+	case OMAP_BO_MT_NORMAL:
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		break;
-	case OMAP_BO_DEVICE:
+	case OMAP_BO_MT_DEVICE:
 		vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
 		break;
-	case OMAP_BO_UNCACHED:
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	case OMAP_BO_MT_STRONGLYORDERED:
+		vma->vm_page_prot = pgprot_stronglyordered(vma->vm_page_prot);
 		break;
 	default:
 		/*
@@ -617,7 +617,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	};
 
 	return omap_gem_new_handle(dev, file, gsize,
-			OMAP_BO_SCANOUT | OMAP_BO_WC, &args->handle);
+			OMAP_BO_SCANOUT | OMAP_BO_MT_NORMAL, &args->handle);
 }
 
 /**
@@ -708,7 +708,7 @@ static inline bool omap_gem_is_cached_coherent(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
 	return !((omap_obj->flags & OMAP_BO_MEM_SHMEM) &&
-		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED));
+		((omap_obj->flags & OMAP_BO_MT_MASK) == OMAP_BO_MT_CACHEABLE));
 }
 
 /* Sync the buffer for CPU access.. note pages should already be
@@ -1148,7 +1148,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	/* Validate the flags and compute the memory and cache flags. */
 	if (flags & OMAP_BO_TILED) {
-		u32 memtype = flags & OMAP_BO_CACHE_MASK;
+		u32 memtype = flags & OMAP_BO_MT_MASK;
 
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
@@ -1163,15 +1163,15 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		flags |= OMAP_BO_MEM_SHMEM;
 
 		/* TILER does not support linefill transfers.  */
-		if (memtype == OMAP_BO_CACHED)
-			memtype = OMAP_BO_WC;
+		if (memtype == OMAP_BO_MT_CACHEABLE)
+			memtype = OMAP_BO_MT_NORMAL;
 
 		/* cortex-A15 uses linefills for normal non-cacheable reads */
 		if (tiler_has_read_erratum() && !(flags & OMAP_BO_NO_MMAP_READ)
-				&& memtype == OMAP_BO_WC)
-			memtype = OMAP_BO_DEVICE;
+				&& memtype == OMAP_BO_MT_NORMAL)
+			memtype = OMAP_BO_MT_DEVICE;
 
-		flags = (flags & ~OMAP_BO_CACHE_MASK) | memtype;
+		flags = (flags & ~OMAP_BO_MT_MASK) | memtype;
 
 	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
 		/*
@@ -1260,7 +1260,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 		return ERR_PTR(-EINVAL);
 
 	gsize.bytes = PAGE_ALIGN(size);
-	obj = omap_gem_new(dev, gsize, OMAP_BO_MEM_DMABUF | OMAP_BO_WC);
+	obj = omap_gem_new(dev, gsize, OMAP_BO_MEM_DMABUF | OMAP_BO_MT_NORMAL);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
