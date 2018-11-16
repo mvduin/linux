@@ -57,7 +57,7 @@ struct omap_gem_object {
 	 *   OMAP_BO_MEM_DMA_API flag set)
 	 *
 	 * - buffers imported from dmabuf (with the OMAP_BO_MEM_DMABUF flag set)
-	 *   if they are physically contiguous (when sgt->orig_nents == 1)
+	 *   if they are physically contiguous (when sgt->nents == 1)
 	 *
 	 * - buffers mapped through the TILER when dma_addr_cnt is not zero, in
 	 *   which case the DMA address points to the TILER aperture
@@ -79,8 +79,9 @@ struct omap_gem_object {
 	u32 dma_addr_cnt;
 
 	/**
-	 * If the buffer has been imported from a dmabuf the OMAP_DB_DMABUF flag
-	 * is set and the sgt field is valid.
+	 * buffer represented as sg table. It is valid if
+	 * - the buffer is imported from dmabuf (OMAP_BO_MEM_DMABUF flag set)
+	 * - the buffer is mapped through dmabuf (also increases dma_addr_cnt)
 	 */
 	struct sg_table *sgt;
 
@@ -563,15 +564,19 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 
 	switch (omap_obj->flags & OMAP_BO_MT_MASK) {
 	case OMAP_BO_MT_NORMAL:
+		dev_info(obj->dev->dev, "%s: OMAP_BO_MT_NORMAL\n", __func__);
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		break;
 	case OMAP_BO_MT_DEVICE:
+		dev_info(obj->dev->dev, "%s: OMAP_BO_MT_DEVICE\n", __func__);
 		vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
 		break;
 	case OMAP_BO_MT_STRONGLYORDERED:
+		dev_info(obj->dev->dev, "%s: OMAP_BO_MT_STRONGLYORDERED\n", __func__);
 		vma->vm_page_prot = pgprot_stronglyordered(vma->vm_page_prot);
 		break;
 	default:
+		dev_info(obj->dev->dev, "%s: OMAP_BO_MT_CACHED\n", __func__);
 		/*
 		 * We do have some private objects, at least for scanout buffers
 		 * on hardware without DMM/TILER.  But these are allocated write-
@@ -888,6 +893,12 @@ static void _omap_gem_unpin(struct drm_gem_object *obj)
 	if (--omap_obj->dma_addr_cnt)
 		return;  /* still has users */
 
+	if (omap_obj->sgt) {
+		sg_free_table(omap_obj->sgt);
+		kfree(omap_obj->sgt);
+		omap_obj->sgt = NULL;
+	}
+
 	if (WARN_ON(!omap_obj->block))
 		return;
 
@@ -998,6 +1009,73 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 	 * released the pages..
 	 */
 	return 0;
+}
+
+struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	dma_addr_t addr;
+	struct sg_table *sgt;
+	struct scatterlist *sg;
+	unsigned int count, len, stride, i;
+	int ret;
+
+	ret = omap_gem_pin(obj, &addr);
+	if (ret)
+		return ERR_PTR(ret);
+
+	mutex_lock(&omap_obj->lock);
+
+	sgt = omap_obj->sgt;
+	if (sgt)
+		goto out;
+
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	ret = -ENOMEM;
+	if (!sgt)
+		goto out_unpin;
+
+	if (omap_obj->flags & OMAP_BO_TILED) {
+		enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
+		len = omap_obj->width << (int)fmt;
+		count = omap_obj->height;
+		stride = tiler_stride(fmt, 0);
+	} else {
+		len = obj->size;
+		count = 1;
+		stride = 0;
+	}
+
+	ret = sg_alloc_table(sgt, count, GFP_KERNEL);
+	if (ret)
+		goto out_free;
+
+	for_each_sg(sgt->sgl, sg, count, i) {
+		sg_set_page(sg, phys_to_page(addr), len, offset_in_page(addr));
+		sg_dma_address(sg) = addr;
+		sg_dma_len(sg) = len;
+
+		addr += stride;
+	}
+
+	omap_obj->sgt = sgt;
+out:
+	mutex_unlock(&omap_obj->lock);
+	return sgt;
+
+out_free:
+	kfree(sgt);
+out_unpin:
+	mutex_unlock(&omap_obj->lock);
+	omap_gem_unpin(obj);
+	return ERR_PTR(ret);
+}
+
+void omap_gem_put_sg(struct drm_gem_object *obj, struct sg_table *sgt)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	BUG_ON(omap_obj->sgt != sgt);
+	omap_gem_unpin(obj);
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -1303,7 +1381,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 	union omap_gem_size gsize;
 
 	/* Without a DMM only physically contiguous buffers can be supported. */
-	if (sgt->orig_nents != 1 && !priv->has_dmm)
+	if (sgt->nents != 1 && !priv->has_dmm)
 		return ERR_PTR(-EINVAL);
 
 	gsize.bytes = PAGE_ALIGN(size);
@@ -1317,7 +1395,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 
 	omap_obj->sgt = sgt;
 
-	if (sgt->orig_nents == 1) {
+	if (sgt->nents == 1) {
 		omap_obj->dma_addr = sg_dma_address(sgt->sgl);
 	} else {
 		/* Create pages list from sgt */
@@ -1336,7 +1414,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 
 		omap_obj->pages = pages;
 
-		for_each_sg_page(sgt->sgl, &iter, sgt->orig_nents, 0) {
+		for_each_sg_page(sgt->sgl, &iter, sgt->nents, 0) {
 			pages[i++] = sg_page_iter_page(&iter);
 			if (i > npages)
 				break;
