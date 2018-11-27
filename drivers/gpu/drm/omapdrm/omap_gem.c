@@ -549,6 +549,20 @@ int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return omap_gem_mmap_obj(vma->vm_private_data, vma);
 }
 
+static pgprot_t omap_gem_pgprot(struct omap_gem_object *omap_obj, pgprot_t prot)
+{
+	switch (omap_obj->flags & OMAP_BO_MT_MASK) {
+	case OMAP_BO_MT_NORMAL:
+		return pgprot_writecombine(prot);
+	case OMAP_BO_MT_DEVICE:
+		return pgprot_device(prot);
+	case OMAP_BO_MT_STRONGLYORDERED:
+		return pgprot_stronglyordered(prot);
+	default:
+		return prot;
+	}
+}
+
 int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		struct vm_area_struct *vma)
 {
@@ -559,19 +573,10 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		vma->vm_flags |= VM_MIXEDMAP;
 	}
 
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	vma->vm_page_prot = omap_gem_pgprot(omap_obj,
+					    vm_get_page_prot(vma->vm_flags));
 
-	switch (omap_obj->flags & OMAP_BO_MT_MASK) {
-	case OMAP_BO_MT_NORMAL:
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-		break;
-	case OMAP_BO_MT_DEVICE:
-		vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
-		break;
-	case OMAP_BO_MT_STRONGLYORDERED:
-		vma->vm_page_prot = pgprot_stronglyordered(vma->vm_page_prot);
-		break;
-	default:
+	if ((omap_obj->flags & OMAP_BO_MT_MASK) == OMAP_BO_MT_CACHEABLE) {
 		/*
 		 * We do have some private objects, at least for scanout buffers
 		 * on hardware without DMM/TILER.  But these are allocated write-
@@ -611,6 +616,7 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 
 	return 0;
 }
+
 
 /* -----------------------------------------------------------------------------
  * Dumb Buffers
@@ -998,6 +1004,45 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 	 * released the pages..
 	 */
 	return 0;
+}
+
+static void *omap_gem_vmap_tiled(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
+	u32 len = omap_obj->width << (int)fmt;
+	u32 count = omap_obj->height;
+	u32 stride = tiler_stride(fmt, 0);
+	struct vm_struct *area;
+	pte_t *ptes[npages];
+
+	if (len & (PAGE_SIZE - 1))
+		return ERR_PTR(-EINVAL);
+
+	area = alloc_vm_area(npages << PAGE_SHIFT, ptes);
+	if (!area)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < npages; i++) {
+		pte_t *pte = ptes[i];
+		BUG_ON(!pte_none(*pte));
+		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+		pfn++;
+		addr += PAGE_SIZE;
+	}
+
+	flush_cache_vmap(start, end);
+}
+
+void *omap_gem_vmap(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	pgprot_t prot = omap_gem_pgprot(omap_obj, PAGE_KERNEL);
+}
+
+void omap_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	flush_cache_vunmap(start, end);
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
